@@ -1,0 +1,446 @@
+<?php
+
+/**
+ * Implements hook_menu().
+ */
+function wsmoodle_menu() {
+  $items = array();
+
+  $items['admin/config/services/wsmoodle'] = array(
+    'title' => 'Moodle API webservice',
+	'type' => MENU_NORMAL_ITEM,
+    'description' => 'Configure Moodle WebService.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('wsmoodle_admin_settings'),
+    'access arguments' => array('administer site configuration'),
+    'file' => 'wsmoodle.admin.inc',
+  );
+  $items['admin/config/services/wsmoodle/connection'] = array(
+    'title' => 'Moodle API webservice settings',
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+  );
+  $items['admin/config/services/wsmoodle/tools'] = array( //this creates a URL that will call this form at "examples/form-example"
+    'title' => 'Moodle API webservice Tools', //page title
+	'weight' => 10,
+	'type' => MENU_LOCAL_TASK,
+    'description' => 'Moodle API webservice Tools.',
+    'page callback' => 'drupal_get_form', //this is the function that will be called when the page is accessed.  for a form, use drupal_get_form
+    'page arguments' => array('wsmoodle_tools_form'), //put the name of the form here
+    'access callback' => TRUE,
+	'file' => 'wsmoodle.admin.inc',
+  );
+  $items['admin/config/services/wsmoodle/cohorts'] = array( //this creates a URL that will call this form at "examples/form-example"
+    'title' => 'Moodle API cohort settings', //page title
+	'type' => MENU_LOCAL_TASK,
+	'weight' => 9,
+    'description' => 'Moodle API cohort settings.',
+    'page callback' => 'drupal_get_form', //this is the function that will be called when the page is accessed.  for a form, use drupal_get_form
+    'page arguments' => array('wsmoodle_cohorts_form'), //put the name of the form here
+    'access callback' => TRUE,
+	'file' => 'wsmoodle.admin.inc',
+  );
+  return $items;
+}
+
+function cohort_sync_button() {
+
+  $config = get_wsmoodle_config();
+  $name = 'test';
+  $memberships = views_get_view_result('work');
+
+  debug($config);
+  
+  $cohort_username_mapping = $config['cohort_username'];
+  $cohort_id_mapping = $config['cohort_id'];
+  $cohort_name_mapping = $config['cohort_name'];
+  $cohort_description_mapping = $config['cohort_description'];
+  
+  //debug($cohort_username_mapping);
+  
+  foreach($memberships as $membership) {
+    debug($membership);
+	$username = $membership->$cohort_username_mapping;
+	$cohort_id = $membership->$cohort_id_mapping;
+	$cohort_name = $membership->$cohort_name_mapping;
+	$cohort_description = $membership->$cohort_description_mapping;
+	
+	//see if cohort exists
+	
+  }
+}
+
+function user_sync_button() {
+
+  $query = new EntityFieldQuery();
+  $query->entityCondition('entity_type', 'user')
+  ->propertyCondition('uid', 0, '!=');
+  $result = $query->execute();
+  //debug($result);
+  $user_ids = array_keys($result['user']);
+  //debug($user_ids);
+  
+  $users = user_load_multiple($user_ids);
+  //debug($users);
+  foreach($users as $account) {
+  
+    $username = $account->name;
+    $email = $account->mail;
+    $firstname = field_fetch_field_values('user', $account, 'field_firstname', 0);
+    $lastname = field_fetch_field_values('user', $account, 'field_lastname', 0);
+  
+    $user = array(
+        'username' => $username,
+        'password' => 'Time-2-Test',
+        'firstname' => $firstname,
+        'lastname' => $lastname,
+        'email' => $email,
+    );
+	// Update or create user...
+	user_update_create($user);
+  }
+  //drupal_set_message(t('User sync complete. Check Recent log messages for errors.'));
+
+}
+
+// Hook form submit
+function wsmoodle_tools_form_submit($form, &$form_state) {
+
+}
+
+//Hook user add
+function wsmoodle_user_insert(&$edit, $account, $category) {
+
+  $username = $account->name;
+  $email = $account->mail;
+  $firstname = field_fetch_field_values('user', $account, 'field_firstname', 0);
+  $lastname = field_fetch_field_values('user', $account, 'field_lastname', 0);
+
+    $user = array(
+        'username' => $username,
+        'password' => 'Time-2-Test',
+        'firstname' => $firstname,
+        'lastname' => $lastname,
+        'email' => $email,
+    );
+
+  $users = array($user);
+  
+  user_update_create($user);
+  
+}
+
+// Hook user update
+function wsmoodle_user_update(&$edit, $account, $category) {
+
+  $username = $account->name;
+  $email = $account->mail;
+  $firstname = field_fetch_field_values('user', $account, 'field_firstname', 0);
+  $lastname = field_fetch_field_values('user', $account, 'field_lastname', 0);
+ 
+  $user = array(
+      'username' => $username,
+      'password' => 'Time-2-Test',
+      'firstname' => $firstname,
+      'lastname' => $lastname,
+      'email' => $email,
+  ); 
+  // Need to search for users that match drupal username
+  $id = search_for_moodle_user($username);
+  
+  if (is_int($id)) {
+	
+	$user['id']  = $id ;
+    $users = array($user);
+	
+	$response = core_user_update_users($users);
+	
+    if ($response == '') {
+      watchdog('wsmoodle', 'Moodle account (%id) successfully updated for user %username.', array('%username' => $username, '%id' => $id));
+    } else {
+      watchdog('wsmoodle', 'ERROR updating Moodle account (%id) for user %username.', array('%username' => $username, '%id' => $id), WATCHDOG_ERROR);
+    }
+  } else {
+  
+    $users = array($user);
+    $response = core_user_create_users($users);
+	
+    //check for moodle id
+    if (isset($response[0]['id'])) {
+      //drupal_set_message($response[0]['id']);
+      watchdog('wsmoodle', 'Moodle account (%id) successfully created for user %username.', array('%username' => $username, '%id' => $response[0]['id']));
+    } else {
+      watchdog('wsmoodle', 'ERROR creating Moodle account for user %username.', array('%username' => $username), WATCHDOG_ERROR);
+    }
+  }
+}
+
+// Hook user delete
+function wsmoodle_user_delete($account) {
+
+  $username = $account->name;
+  $id = search_for_moodle_user($username);
+  
+  if (is_int($id)) {
+	
+    $users = array(
+	    'id' => $id,
+    );
+
+	$response = core_user_delete_users($users);
+
+    if ($response == '') {
+      watchdog('wsmoodle', 'Moodle account (%id) successfully deleted for user %username.', array('%username' => $username, '%id' => $id));
+    } else {
+      watchdog('wsmoodle', 'ERROR deleting Moodle account (%id) for user %username.', array('%username' => $username, '%id' => $id), WATCHDOG_ERROR);
+    }
+  } else {
+  	watchdog('wsmoodle', 'ERROR deleting Moodle account for user %username. User not found!', array('%username' => $username), WATCHDOG_ERROR);
+  }
+}
+ 
+function core_user_create_users($users) {
+  //create the moodle users
+   
+  $config = get_wsmoodle_config();
+  $functionname = 'core_user_create_users';
+  $data = array('users' => $users);
+	
+  $url = $config['fqdn'] . $config['endpoint'] . '?wstoken=' . $config['token'] . '&wsfunction=' . $functionname . '&moodlewsrestformat=' . $config['restformat'];
+  $params = array();
+    	
+  $response = make_request($url, HttpClientRequest::METHOD_POST, $params, $data);
+  
+  return $response;
+  
+}
+
+function core_user_update_users($users) {
+
+  $config = get_wsmoodle_config();
+  $functionname = 'core_user_update_users';
+  $data = array('users' => $users);
+	
+  $url = $config['fqdn'] . $config['endpoint'] . '?wstoken=' . $config['token'] . '&wsfunction=' . $functionname . '&moodlewsrestformat=' . $config['restformat'];
+  $params = array();
+    	
+  $response = make_request($url, HttpClientRequest::METHOD_POST, $params, $data);
+  
+  return $response;
+
+}
+
+function core_user_delete_users($users) {
+
+  $config = get_wsmoodle_config();
+  $functionname = 'core_user_delete_users';
+  
+  $data = array('userids' => $users);
+  $url = $config['fqdn'] . $config['endpoint'] . '?wstoken=' . $config['token'] . '&wsfunction=' . $functionname . '&moodlewsrestformat=' . $config['restformat'];
+  $params = array();
+    	
+  $response = make_request($url, HttpClientRequest::METHOD_POST, $params, $data);
+  
+  return $response;
+  
+}
+
+function core_user_get_users($criteria) {
+
+  $config = get_wsmoodle_config();
+  $functionname = 'core_user_get_users';
+  
+  $data = array('criteria' => array($criteria));
+  $url = $config['fqdn'] . $config['endpoint'] . '?wstoken=' . $config['token'] . '&wsfunction=' . $functionname . '&moodlewsrestformat=' . $config['restformat'];
+  $params = array();
+  
+  $response = make_request($url, HttpClientRequest::METHOD_POST, $params, $data);
+  
+  return $response;
+  
+}
+
+function search_for_moodle_user($username) {
+
+  $criteria = array (
+    'key' => 'username',
+	'value' => $username,
+	);
+  
+  $response = core_user_get_users($criteria);
+  
+  //check for moodle id
+  if (isset($response['users'][0]['id'])) {
+    // Great ! we have a moodle user. Update it.
+	$moodle_id = $response['users'][0]['id'];
+	return $moodle_id;
+  } else {
+    return FALSE;
+  }  
+}
+
+function search_for_cohort($username) {
+
+  $criteria = array (
+    'key' => 'username',
+	'value' => $username,
+	);
+  
+  $response = core_user_get_users($criteria);
+  
+  //check for moodle id
+  if (isset($response['users'][0]['id'])) {
+    // Great ! we have a moodle user. Update it.
+	$moodle_id = $response['users'][0]['id'];
+	return $moodle_id;
+  } else {
+    return FALSE;
+  }  
+}
+
+function user_update_create($user) {
+  // Check for user. If not found, create account. Otherwise update.
+  
+  $id = search_for_moodle_user($user['username']);
+  //debug($id);
+  if (is_int($id)) {
+	$user['id']  = $id ;
+    $users = array($user);
+	
+	$response = core_user_update_users($users);
+	
+    if ($response == '') {
+      watchdog('wsmoodle', 'Moodle account (%id) successfully updated for user %username.', array('%username' => $user['username'], '%id' => $id));
+    } else {
+      watchdog('wsmoodle', 'ERROR updating Moodle account (%id) for user %username.', array('%username' => $user['username'], '%id' => $id), WATCHDOG_ERROR);
+    }
+  } else {
+    $users = array($user);
+	
+    $response = core_user_create_users($users);
+	
+    //check for moodle id
+    if (isset($response[0]['id'])) {
+      //drupal_set_message($response[0]['id']);
+      watchdog('wsmoodle', 'Moodle account (%id) successfully created for user %username.', array('%username' => $user['username'], '%id' => $response[0]['id']));
+    } else {
+      watchdog('wsmoodle', 'ERROR creating Moodle account for user %username.', array('%username' => $user['username']), WATCHDOG_ERROR);
+    }
+  }
+}
+
+function cohort_update_create($cohortid) {
+  // Check for cohort. If not found, create account. Otherwise update.
+  
+  $id = search_for_moodle_user($user['username']);
+  //debug($id);
+  if (is_int($id)) {
+	$user['id']  = $id ;
+    $users = array($user);
+	
+	$response = core_user_update_users($users);
+	
+    if ($response == '') {
+      watchdog('wsmoodle', 'Moodle account (%id) successfully updated for user %username.', array('%username' => $user['username'], '%id' => $id));
+    } else {
+      watchdog('wsmoodle', 'ERROR updating Moodle account (%id) for user %username.', array('%username' => $user['username'], '%id' => $id), WATCHDOG_ERROR);
+    }
+  } else {
+    $users = array($user);
+	
+    $response = core_user_create_users($users);
+	
+    //check for moodle id
+    if (isset($response[0]['id'])) {
+      //drupal_set_message($response[0]['id']);
+      watchdog('wsmoodle', 'Moodle account (%id) successfully created for user %username.', array('%username' => $user['username'], '%id' => $response[0]['id']));
+    } else {
+      watchdog('wsmoodle', 'ERROR creating Moodle account for user %username.', array('%username' => $user['username']), WATCHDOG_ERROR);
+    }
+  }
+}
+
+function make_request($url, $method, $params, $data) {
+  $response = '';
+  $formatter = new HttpClientCompositeFormatter(HttpClientBaseFormatter::FORMAT_FORM, HttpClientBaseFormatter::FORMAT_JSON);	
+  $client = new HttpClient(NULL, $formatter);
+
+  $request = new HttpClientRequest($url, array(
+  'method' => $method,
+  'parameters' => $params,
+  'data' => $data,
+  ));
+  //debug($request);
+  try {
+    $response = $client->execute($request);
+    //debug($response);
+  }
+  catch (HttpClientException $e) {
+    ////debug($e);
+	watchdog('wsmoodle', '%e', array('%e' => $e), WATCHDOG_ERROR);
+  }
+   return $response;
+}
+
+function get_wsmoodle_config() {
+
+  $config = array(
+    'token' => variable_get('wsmoodle_token'),
+    'fqdn' => variable_get('wsmoodle_fqdn'),
+    'endpoint' => variable_get('wsmoodle_service_endpoint'),
+    'restformat' => variable_get('wsmoodle_format'),
+    'cohort_username' => variable_get('wsmoodle_cohort_username'),
+    'cohort_name' => variable_get('wsmoodle_cohort_name'),
+    'cohort_description' => variable_get('wsmoodle_cohort_description'),
+    'cohort_id' => variable_get('wsmoodle_cohort_id'),
+	);
+   
+  return $config;
+  
+}
+
+/**
+ * Returns field values as actual entities where possible,
+ * also allows selection of individual items to be returned
+ */
+function field_fetch_field_values($entity_type, $entity, $field_name, $get_delta = NULL, $get_key = NULL) {
+  $values = array();
+  if (isset($entity->$field_name) && !empty($entity->$field_name)) {
+    foreach (field_get_items($entity_type, $entity, $field_name) as $delta => $item) {
+      $value = $item;
+      $keys = array_keys($item);
+      if (count($keys)==1) {
+        $key = $keys[0];
+        switch ($key) {
+          case 'nid':
+            $value = array_shift(entity_load('node', array($item[$key])));
+            break;
+          case 'uid':
+            $value = array_shift(entity_load('user', array($item[$key])));
+            break;
+          case 'tid':
+            $value = array_shift(entity_load('taxonomy_term', array($item[$key])));
+            break;
+          case 'vid':
+            $value = array_shift(entity_load('taxonomy_vocabulary', array($item[$key])));
+            break;
+          case 'value':
+            $value = $item['value'];
+            break;
+        }
+      }
+      else {
+        if ($get_key && isset($item[$get_key])) {
+          $value = $item[$get_key];
+        }
+        elseif (array_key_exists('value', $item)) {
+          $value = isset($item['safe_value']) ? $item['safe_value'] : $item['value'];
+        }
+      }
+      $values[$delta] = $value;
+    }
+  }
+  if (is_numeric($get_delta)) {
+    return isset($values[$get_delta]) ? $values[$get_delta] : NULL;
+  }
+  return $values;
+}
