@@ -41,6 +41,14 @@ function wsmoodle_admin_settings() {
     '#title' => 'Respose Format',
     '#required' => TRUE,
   );
+
+  $form['wsmoodle_authtype'] = array(
+    '#type' => 'textfield',
+    '#default_value' => variable_get('wsmoodle_authtype', 'manual'),
+    '#description' => 'Please enter the Moodle user authentication type.',
+    '#title' => 'Moodle user auth type',
+    '#required' => TRUE,
+  );
   
   return system_settings_form($form);
 }

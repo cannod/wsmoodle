@@ -71,6 +71,8 @@ function cohort_sync_button() {
 
 function user_sync_button() {
 
+  $config = get_wsmoodle_config();
+	
   $query = new EntityFieldQuery();
   $query->entityCondition('entity_type', 'user')
   ->propertyCondition('uid', 0, '!=');
@@ -83,21 +85,33 @@ function user_sync_button() {
   //debug($users);
   foreach($users as $account) {
   
+    $auth = $config['authtype'];
+	
     $username = $account->name;
     $email = $account->mail;
     $firstname = field_fetch_field_values('user', $account, 'field_firstname', 0);
     $lastname = field_fetch_field_values('user', $account, 'field_lastname', 0);
+	
   
     $user = array(
         'username' => $username,
-        'password' => 'Time-2-Test',
         'firstname' => $firstname,
         'lastname' => $lastname,
         'email' => $email,
+		'auth' => $auth,
     );
 	// Update or create user...
-	user_update_create($user);
+	  $response = droodle_create_user($user);
+  
+      //check for moodle id
+      if ($response == 1) {
+        //drupal_set_message($response[0]['id']);
+        watchdog('wsmoodle', 'Moodle account successfully created for user %username.', array('%username' => $username));
+      } else {
+        watchdog('wsmoodle', 'ERROR creating Moodle account for user %username.', array('%username' => $username), WATCHDOG_ERROR);
+      };
   }
+ 
   //drupal_set_message(t('User sync complete. Check Recent log messages for errors.'));
 
 }
@@ -110,27 +124,36 @@ function wsmoodle_tools_form_submit($form, &$form_state) {
 //Hook user add
 function wsmoodle_user_insert(&$edit, $account, $category) {
 
-  $username = $account->name;
-  $email = $account->mail;
-  $firstname = field_fetch_field_values('user', $account, 'field_firstname', 0);
-  $lastname = field_fetch_field_values('user', $account, 'field_lastname', 0);
+  create_update_user($account);
 
-    $user = array(
-        'username' => $username,
-        'password' => 'Time-2-Test',
-        'firstname' => $firstname,
-        'lastname' => $lastname,
-        'email' => $email,
-    );
-
-  $users = array($user);
-  
-  user_update_create($user);
-  
 }
 
 // Hook user update
 function wsmoodle_user_update(&$edit, $account, $category) {
+
+  create_update_user($account);
+
+}
+
+// Hook user delete
+function wsmoodle_user_delete($account) {
+
+  $username = $account->name;
+
+	$response = droodle_delete_user($username);
+
+    if ($response == 1) {
+      watchdog('wsmoodle', 'Moodle account successfully deleted for user %username.', array('%username' => $username));
+    } else {
+      watchdog('wsmoodle', 'ERROR deleting Moodle account for user %username.', array('%username' => $username), WATCHDOG_ERROR);
+    }
+}
+
+function create_update_user($account) {
+
+  $config = get_wsmoodle_config();
+  
+  $auth = $config['authtype'];
 
   $username = $account->name;
   $email = $account->mail;
@@ -139,143 +162,57 @@ function wsmoodle_user_update(&$edit, $account, $category) {
  
   $user = array(
       'username' => $username,
-      'password' => 'Time-2-Test',
       'firstname' => $firstname,
       'lastname' => $lastname,
       'email' => $email,
+	  'auth' => $auth,
   ); 
-  // Need to search for users that match drupal username
-  $id = search_for_moodle_user($username);
-  
-  if (is_int($id)) {
+
+  	$response = droodle_create_user($user);
 	
-	$user['id']  = $id ;
-    $users = array($user);
-	
-	$response = core_user_update_users($users);
-	
-    if ($response == '') {
-      watchdog('wsmoodle', 'Moodle account (%id) successfully updated for user %username.', array('%username' => $username, '%id' => $id));
+    if ($response == 1) {
+      watchdog('wsmoodle', 'Moodle account successfully created/updated for user %username.', array('%username' => $user['username']));
     } else {
-      watchdog('wsmoodle', 'ERROR updating Moodle account (%id) for user %username.', array('%username' => $username, '%id' => $id), WATCHDOG_ERROR);
+      watchdog('wsmoodle', 'ERROR creating/updating Moodle account for user %username.', array('%username' => $user['username']), WATCHDOG_ERROR);
     }
-  } else {
-  
-    $users = array($user);
-    $response = core_user_create_users($users);
+}
+function droodle_delete_user($username) {
+
+  $config = get_wsmoodle_config();
+  $functionname = 'droodle_delete_user';
+  $data = array('username' => $username);
 	
-    //check for moodle id
-    if (isset($response[0]['id'])) {
-      //drupal_set_message($response[0]['id']);
-      watchdog('wsmoodle', 'Moodle account (%id) successfully created for user %username.', array('%username' => $username, '%id' => $response[0]['id']));
-    } else {
-      watchdog('wsmoodle', 'ERROR creating Moodle account for user %username.', array('%username' => $username), WATCHDOG_ERROR);
-    }
-  }
+  $url = $config['fqdn'] . $config['endpoint'] . '?wstoken=' . $config['token'] . '&wsfunction=' . $functionname . '&moodlewsrestformat=' . $config['restformat'];
+  $params = array();
+
+  $response = make_request($url, HttpClientRequest::METHOD_POST, $params, $data);
+  
+  return $response;
+
 }
 
-// Hook user delete
-function wsmoodle_user_delete($account) {
-
-  $username = $account->name;
-  $id = search_for_moodle_user($username);
-  
-  if (is_int($id)) {
-	
-    $users = array(
-	    'id' => $id,
-    );
-
-	$response = core_user_delete_users($users);
-
-    if ($response == '') {
-      watchdog('wsmoodle', 'Moodle account (%id) successfully deleted for user %username.', array('%username' => $username, '%id' => $id));
-    } else {
-      watchdog('wsmoodle', 'ERROR deleting Moodle account (%id) for user %username.', array('%username' => $username, '%id' => $id), WATCHDOG_ERROR);
-    }
-  } else {
-  	watchdog('wsmoodle', 'ERROR deleting Moodle account for user %username. User not found!', array('%username' => $username), WATCHDOG_ERROR);
-  }
-}
- 
-function core_user_create_users($users) {
-  //create the moodle users
+function droodle_create_user($user) {
+  //create the moodle user
    
   $config = get_wsmoodle_config();
-  $functionname = 'core_user_create_users';
-  $data = array('users' => $users);
+  $functionname = 'droodle_create_user';
+  $data = $user;
 	
   $url = $config['fqdn'] . $config['endpoint'] . '?wstoken=' . $config['token'] . '&wsfunction=' . $functionname . '&moodlewsrestformat=' . $config['restformat'];
   $params = array();
-    	
+
   $response = make_request($url, HttpClientRequest::METHOD_POST, $params, $data);
   
   return $response;
   
 }
 
-function core_user_update_users($users) {
 
-  $config = get_wsmoodle_config();
-  $functionname = 'core_user_update_users';
-  $data = array('users' => $users);
-	
-  $url = $config['fqdn'] . $config['endpoint'] . '?wstoken=' . $config['token'] . '&wsfunction=' . $functionname . '&moodlewsrestformat=' . $config['restformat'];
-  $params = array();
-    	
-  $response = make_request($url, HttpClientRequest::METHOD_POST, $params, $data);
-  
-  return $response;
+function moodle_user_exists($username) {
 
-}
-
-function core_user_delete_users($users) {
-
-  $config = get_wsmoodle_config();
-  $functionname = 'core_user_delete_users';
-  
-  $data = array('userids' => $users);
-  $url = $config['fqdn'] . $config['endpoint'] . '?wstoken=' . $config['token'] . '&wsfunction=' . $functionname . '&moodlewsrestformat=' . $config['restformat'];
-  $params = array();
-    	
-  $response = make_request($url, HttpClientRequest::METHOD_POST, $params, $data);
-  
-  return $response;
-  
-}
-
-function core_user_get_users($criteria) {
-
-  $config = get_wsmoodle_config();
-  $functionname = 'core_user_get_users';
-  
-  $data = array('criteria' => array($criteria));
-  $url = $config['fqdn'] . $config['endpoint'] . '?wstoken=' . $config['token'] . '&wsfunction=' . $functionname . '&moodlewsrestformat=' . $config['restformat'];
-  $params = array();
-  
-  $response = make_request($url, HttpClientRequest::METHOD_POST, $params, $data);
-  
-  return $response;
-  
-}
-
-function search_for_moodle_user($username) {
-
-  $criteria = array (
-    'key' => 'username',
-	'value' => $username,
-	);
-  
-  $response = core_user_get_users($criteria);
-  
-  //check for moodle id
-  if (isset($response['users'][0]['id'])) {
-    // Great ! we have a moodle user. Update it.
-	$moodle_id = $response['users'][0]['id'];
-	return $moodle_id;
-  } else {
-    return FALSE;
-  }  
+  $criteria = array('username' => $username);
+  $response = droodle_user_exists($criteria);
+  return $response; 
 }
 
 function search_for_cohort($username) {
@@ -297,36 +234,6 @@ function search_for_cohort($username) {
   }  
 }
 
-function user_update_create($user) {
-  // Check for user. If not found, create account. Otherwise update.
-  
-  $id = search_for_moodle_user($user['username']);
-  //debug($id);
-  if (is_int($id)) {
-	$user['id']  = $id ;
-    $users = array($user);
-	
-	$response = core_user_update_users($users);
-	
-    if ($response == '') {
-      watchdog('wsmoodle', 'Moodle account (%id) successfully updated for user %username.', array('%username' => $user['username'], '%id' => $id));
-    } else {
-      watchdog('wsmoodle', 'ERROR updating Moodle account (%id) for user %username.', array('%username' => $user['username'], '%id' => $id), WATCHDOG_ERROR);
-    }
-  } else {
-    $users = array($user);
-	
-    $response = core_user_create_users($users);
-	
-    //check for moodle id
-    if (isset($response[0]['id'])) {
-      //drupal_set_message($response[0]['id']);
-      watchdog('wsmoodle', 'Moodle account (%id) successfully created for user %username.', array('%username' => $user['username'], '%id' => $response[0]['id']));
-    } else {
-      watchdog('wsmoodle', 'ERROR creating Moodle account for user %username.', array('%username' => $user['username']), WATCHDOG_ERROR);
-    }
-  }
-}
 
 function cohort_update_create($cohortid) {
   // Check for cohort. If not found, create account. Otherwise update.
@@ -369,10 +276,10 @@ function make_request($url, $method, $params, $data) {
   'parameters' => $params,
   'data' => $data,
   ));
-  //debug($request);
+  debug($request);
   try {
     $response = $client->execute($request);
-    //debug($response);
+    debug($response);
   }
   catch (HttpClientException $e) {
     ////debug($e);
@@ -392,6 +299,7 @@ function get_wsmoodle_config() {
     'cohort_name' => variable_get('wsmoodle_cohort_name'),
     'cohort_description' => variable_get('wsmoodle_cohort_description'),
     'cohort_id' => variable_get('wsmoodle_cohort_id'),
+	'authtype' => variable_get('wsmoodle_authtype'),
 	);
    
   return $config;
