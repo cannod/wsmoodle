@@ -2219,20 +2219,8 @@ function user_exists ($username)
 	return 0;
 }
 
-function create_droodle_user_additional ($username, $app)
-{
-	global $CFG, $DB;
-
-	$conditions = array ('username' => $username);
-	$user = $DB->get_record('user',$conditions);
-	if (!$user)
-		return 0;
-
-	return $this->create_droodle_user ($username, $app);
-}
 
 function create_user ($username, $firstname, $lastname, $email, $auth) {
-
 
 	global $CFG, $DB;
 
@@ -2257,192 +2245,6 @@ function create_user ($username, $firstname, $lastname, $email, $auth) {
 	//$DB->set_field('user', 'firstaccess', time (), $conditions);
 		
     return 1;
-}
-/**
-* Creates a new droodle user
-* XXX Also used to update user profile if the user already exists
-* 
-* @param string $username Joomla username
-*/
-function create_droodle_user ($username, $app = '')
-{
-	global $CFG, $DB;
-
-	$username = utf8_decode ($username);
-	$username = strtolower ($username);
-	/* Creamos el nuevo usuario de Moodle si no está creado */
-	$conditions = array ('username' => $username);
-	$user = $DB->get_record('user',$conditions);
-	if (!$user)
-		$user = create_user_record($username, "", "droodle");
-
-	/* Obtenemos la información del usuario en Joomla */
-	$juser_info = $this->call_method ("getUserInfo", $username, $app);
-
-	if (array_key_exists ('email', $juser_info))
-		$email = $juser_info['email'];
-	else  $email = '';
-	if (array_key_exists ('firstname', $juser_info))
-		$firstname = $juser_info['firstname'];
-	else  $firstname = '';
-	if (array_key_exists ('lastname', $juser_info))
-		$lastname = $juser_info['lastname'];
-	else  $lastname = '';
-	if (array_key_exists ('city', $juser_info))
-		$city = $juser_info['city'];
-	else  $city = '';
-	if (array_key_exists ('country', $juser_info))
-		$country = $juser_info['country'];
-	else  $country = '';
-	if (array_key_exists ('lang', $juser_info))
-		$lang = $juser_info['lang'];
-	else  $lang = '';
-	if (array_key_exists ('timezone', $juser_info))
-		$timezone = $juser_info['timezone'];
-	else  $timezone = '';
-	if (array_key_exists ('phone1', $juser_info))
-		$phone1 = $juser_info['phone1'];
-	else  $phone1 = '';
-	if (array_key_exists ('phone2', $juser_info))
-		$phone2 = $juser_info['phone2'];
-	else  $phone2 = '';
-	if (array_key_exists ('address', $juser_info))
-		$address = $juser_info['address'];
-	else  $address = '';
-	if (array_key_exists ('description', $juser_info))
-		$description = $juser_info['description'];
-	else  $description = '';
-	if (array_key_exists ('institution', $juser_info))
-		$institution = $juser_info['institution'];
-	else  $institution = '';
-	if (array_key_exists ('url', $juser_info))
-		$url = $juser_info['url'];
-	else  $url = '';
-
-	if (array_key_exists ('icq', $juser_info))
-		$icq = $juser_info['icq'];
-	else  $icq = '';
-	if (array_key_exists ('skype', $juser_info))
-		$skype = $juser_info['skype'];
-	else  $skype = '';
-	if (array_key_exists ('aim', $juser_info))
-		$aim = $juser_info['aim'];
-	else  $aim = '';
-	if (array_key_exists ('yahoo', $juser_info))
-		$yahoo = $juser_info['yahoo'];
-	else  $yahoo = '';
-	if (array_key_exists ('msn', $juser_info))
-		$msn = $juser_info['msn'];
-	else  $msn = '';
-	if (array_key_exists ('idnumber', $juser_info))
-		$idnumber = $juser_info['idnumber'];
-	else  $idnumber = '';
-	if (array_key_exists ('department', $juser_info))
-		$department = $juser_info['department'];
-	else  $department = '';
-
-	//XXX Maybe this can be optimized for a single DB call...$bool = update_record('user', addslashes_recursive($localuser)); en ment/aut.php
-	if (!xmlrpc_is_fault($juser_info)) {
-
-		/* Actualizamos la informacion del usuario recien creado con los datos de Joomla */
-		$conditions = array ('id' => $user->id);
-		if ($firstname)
-			$DB->set_field('user', 'firstname', $firstname, $conditions);
-		if ($lastname)
-			$DB->set_field('user', 'lastname', $lastname, $conditions);
-		if ($email)
-			$DB->set_field('user', 'email', $email, $conditions);
-
-		/* Set first access as now */
-		$DB->set_field('user', 'firstaccess', time (), $conditions);
-		/* Optional data in Joomla, only fill if has a value */
-		if ($city)
-			$DB->set_field('user', 'city', ($city), $conditions);
-		if ($country)
-			$DB->set_field('user', 'country', substr ($country, 0, 2), $conditions);
-		//	$DB->set_field('user', 'country', $country, $conditions);
-		if ($lang)
-			$DB->set_field('user', 'lang', $lang, $conditions);
-		if ($timezone)
-			$DB->set_field('user', 'timezone', $timezone, $conditions);
-		if ($phone1)
-			$DB->set_field('user', 'phone1', ($phone1), $conditions);
-		if ($phone2)
-			$DB->set_field('user', 'phone2', ($phone2), $conditions);
-		if ($address)
-			$DB->set_field('user', 'address', ($address), $conditions);
-		if ($description)
-			$DB->set_field('user', 'description', ($description), $conditions);
-		if ($institution)
-			$DB->set_field('user', 'institution', ($institution), $conditions);
-		if ($url)
-			$DB->set_field('user', 'url', $url, $conditions);
-		if ($icq)
-			$DB->set_field('user', 'icq', $icq, $conditions);
-		if ($skype)
-			$DB->set_field('user', 'skype', $skype, $conditions);
-		if ($aim)
-			$DB->set_field('user', 'aim', $aim, $conditions);
-		if ($yahoo)
-			$DB->set_field('user', 'yahoo', $yahoo, $conditions);
-		if ($msn)
-			$DB->set_field('user', 'msn', $msn, $conditions);
-		if ($idnumber)
-			$DB->set_field('user', 'idnumber', $idnumber, $conditions);
-		if ($department)
-			$DB->set_field('user', 'department', $department, $conditions);
-	}
-
-	/* Get user pic */
-	if ((array_key_exists ('pic_url', $juser_info)) && ($juser_info['pic_url']))
-	{
-		if ($juser_info['pic_url'] != 'none')
-		{
-			$joomla_url = get_config (NULL, 'joomla_url');
-			$pic_url = $joomla_url.'/'.$juser_info['pic_url'];
-			//$pic = @file_get_contents ($pic_url, false, NULL);
-			$pic = $this->get_file ($pic_url);
-			if ($pic)
-			{
-				//$pic = file_get_contents ($pic_url, false, NULL);
-				$pic = $this->get_file_curl ($pic_url);
-				$tmp_file = $CFG->dataroot.'/temp/'.'tmp_pic';
-				file_put_contents ($tmp_file, $pic);
-
-				$context = get_context_instance(CONTEXT_USER, $user->id);
-				process_new_icon($context, 'user', 'icon', 0, $tmp_file);
-
-				$conditions = array ('id' => $user->id);
-				$DB->set_field('user', 'picture', 1, $conditions);
-			}
-		}
-	}
-
-
-	/* Custom fields */
-    if ($fields = $DB->get_records('user_info_field')) {
-		foreach ($fields as $field)
-		{
-			if ((array_key_exists ('cf_'.$field->id, $juser_info)) && ($juser_info['cf_'.$field->id]))
-			{
-				$data = new stdClass();
-				$data->fieldid = $field->id;
-				$data->data = $juser_info['cf_'.$field->id];
-				$data->userid = $user->id;
-				/* update custom field */
-				 if ($dataid = $DB->get_field('user_info_data', 'id', array('userid'=>$user->id, 'fieldid'=>$data->fieldid)))
-				 {
-						$data->id = $dataid;
-						$DB->update_record('user_info_data', $data);
-				} else {
-						$DB->insert_record('user_info_data', $data);
-				}
-
-			}
-		}
-	}
-
-	return 1;
 }
 
 function search_courses ($text, $phrase, $ordering, $limit)
@@ -3026,7 +2828,7 @@ function enrol_user ($username, $course_id, $roleid = 5)
     $conditions = array ('username' => $username);
     $user = $DB->get_record('user',$conditions);
     if (!$user)
-        $this->create_droodle_user ($username);
+        return 0;
 
     $user = $DB->get_record('user',$conditions);
     $conditions = array ('id' => $course_id);

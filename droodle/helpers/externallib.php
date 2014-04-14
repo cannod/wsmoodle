@@ -1023,30 +1023,6 @@ class droodle_helpers_external extends external_api {
         return $id;
     }
 
-	/* create_droodle_user */
-    public static function create_droodle_user_parameters() {
-        return new external_function_parameters(
-                        array(
-                            'username' => new external_value(PARAM_TEXT, 'username'),
-                        )
-        );
-    }
-
-    public static function create_droodle_user_returns() {
-        return new  external_value(PARAM_INT, 'user created');
-    }
-
-    public static function create_droodle_user($username) { 
-        global $CFG, $DB;
- 
-        $params = self::validate_parameters(self::create_droodle_user_parameters(), array('username'=>$username));
- 
-		$webservice = new  droodle_webservice ();
-		$id = $webservice->create_droodle_user ($username);
-
-        return $id;
-    }
-
 	/* create_user */
     public static function create_user_parameters() {
         return new external_function_parameters(

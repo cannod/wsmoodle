@@ -184,6 +184,15 @@ function wsmoodle_user_delete($account) {
     }
 }
 
+function wsmoodle_enrol_user($account, $course_id) {
+
+  // droodle_enrol_user
+  
+  drupal_set_message(t('Moodle course @username!',
+    array('@username' => $course_id)));
+
+}
+
 function wsmoodle_create_update_user($account) {
 
   $config = get_wsmoodle_config();
