@@ -88,31 +88,31 @@ function wsmoodle_tools_form($form, &$form_state) {
 function wsmoodle_cohorts_form($form, &$form_state) {
   $form = array();
   
-  $form['wsmoodle_cohort_username'] = array(
+  $form['wsmoodle_cohort_user_id'] = array(
     '#type' => 'textfield',
-    '#default_value' => variable_get('wsmoodle_cohort_username', ''),
-    '#description' => 'Please the view field that contains the username.',
-    '#title' => 'Drupal username',
+    '#default_value' => variable_get('wsmoodle_cohort_user_id', ''),
+    '#description' => 'Please enter the view field that contains the Drupal user ID.',
+    '#title' => 'Drupal user ID',
     '#required' => TRUE,
   ); 
   $form['wsmoodle_cohort_name'] = array(
     '#type' => 'textfield',
     '#default_value' => variable_get('wsmoodle_cohort_name', ''),
-    '#description' => 'Please the view field that contains the cohort name.',
+    '#description' => 'Please enter the view field that contains the cohort name.',
     '#title' => 'Cohort name',
     '#required' => TRUE,
   );
     $form['wsmoodle_cohort_id'] = array(
     '#type' => 'textfield',
     '#default_value' => variable_get('wsmoodle_cohort_id', ''),
-    '#description' => 'Please the view field that contains the cohort id.',
+    '#description' => 'Please enter the view field that contains the cohort id.',
     '#title' => 'Cohort ID',
     '#required' => TRUE,
   );
     $form['wsmoodle_cohort_description'] = array(
     '#type' => 'textfield',
     '#default_value' => variable_get('wsmoodle_cohort_description', ''),
-    '#description' => 'Please the view field that contains the cohort description.',
+    '#description' => 'Please enter the view field that contains the cohort description.',
     '#title' => 'Cohort description',
     '#required' => TRUE,
   );

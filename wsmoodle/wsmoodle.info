@@ -4,5 +4,6 @@ package = Services
 core = 7.x
 
 dependencies[] = http_client
+dependencies[] = rules
 
 version = "7.x-1.0"
