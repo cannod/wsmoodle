@@ -4797,36 +4797,6 @@ function question_rewrite_question_urls($text, $file, $contextid, $component,
 
         return $rdo;
     }
-	
-	function my_cohorts ($username)
-	{
-	    global $CFG, $DB;
-	
-		$username = utf8_decode ($username);
-		$username = strtolower ($username);
-
-		$user = get_complete_user_data ('username', $username);
- 
-		if (!$user)
-			return array ();
-			
-       $uid = $user->id;
-
-        $query = "SELECT c.id AS cid, c.name AS name FROM {cohort} c JOIN {cohort_members} cm ON cm.cohortid = c.id WHERE c.component = 'auth_drupalservices' AND cm.userid = $user->id";
-        $user_cohorts = $DB->get_records_sql($query);
-        $rdo = array ();
-        foreach ($cohorts as $cohort)
-        {
-            $c['id'] = $cohort->id;
-            $c['name'] = $cohort->name;
-
-            $rdo[] = $c;
-        }
-
-        return $rdo;
-		
-	}
-
 
     function create_course ($course_ext,$skip_fix_course_sortorder=0){
         global $CFG, $DB;

@@ -2719,38 +2719,6 @@ class droodle_helpers_external extends external_api {
         return $return;
     }
 	
-	/* my_cohorts */
-    public static function my_cohorts_parameters() {
-        return new external_function_parameters(
-                        array(
-						  'username' => new external_value(PARAM_TEXT, 'username'),
-                        )
-        );
-    }
-
-    public static function my_cohorts_returns() {
-		 return new external_multiple_structure(
-				new external_single_structure(
-					array(
-						'id' => new external_value(PARAM_INT, 'cohort id'),
-						'name' => new external_value(PARAM_TEXT, 'name'),
-					)
-				)
-            );
-    }
-
-    public static function my_cohorts() {
-        global $CFG, $DB;
- 
-        $params = self::validate_parameters(self::my_cohorts_parameters(), array('username' => $username));
- 
-		$webservice = new  droodle_webservice ();
-		$return = $webservice->my_cohorts ($username);
-
-
-        return $return;
-    }
-
 	/* add_cohort_member */
     public static function add_cohort_member_parameters() {
         return new external_function_parameters(
