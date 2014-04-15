@@ -7,6 +7,13 @@ $functions = array(
         'description' => 'Get user id.',    //human readable description of the web service function
         'type'        => 'read',                  //database rights of the web service function (read, write)
     ),
+    'droodle_course_id' => array(         //web service function name
+        'classname'   => 'droodle_helpers_external',  //class containing the external function
+        'methodname'  => 'course_id',          //external function name
+        'classpath'   => 'local/droodle/helpers/externallib.php',  //file containing the class/external function
+        'description' => 'Get course id.',    //human readable description of the web service function
+        'type'        => 'read',                  //database rights of the web service function (read, write)
+    ),
     'droodle_list_courses' => array(         //web service function name
         'classname'   => 'droodle_helpers_external',  //class containing the external function
         'methodname'  => 'list_courses',          //external function name
@@ -194,14 +201,7 @@ $functions = array(
         'methodname'  => 'user_exists', 
         'classpath'   => 'local/droodle/helpers/externallib.php',
         'description' => 'Check if username exists', 
-        'type'        => 'read',                 
-    ),
-    'droodle_create_droodle_user' => array(        
-        'classname'   => 'droodle_helpers_external',
-        'methodname'  => 'create_droodle_user', 
-        'classpath'   => 'local/droodle/helpers/externallib.php',
-        'description' => 'Creates user account', 
-        'type'        => 'read',                 
+        'type'        => 'read',                                
     ),
     'droodle_create_user' => array(        
         'classname'   => 'droodle_helpers_external',

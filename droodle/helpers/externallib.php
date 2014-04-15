@@ -28,6 +28,31 @@ class droodle_helpers_external extends external_api {
 
         return $id;
     }
+	
+	/* course_id */
+    public static function course_id_parameters() {
+        return new external_function_parameters(
+                        array(
+                            'idnumber' => new external_value(PARAM_TEXT, 'idnumber'),
+                        )
+        );
+    }
+
+    public static function course_id_returns() {
+        return new  external_value(PARAM_INT, 'multilang compatible name, course unique');
+    }
+
+    public static function course_id($idnumber) { //Don't forget to set it as static
+        global $CFG, $DB;
+ 
+        $params = self::validate_parameters(self::course_id_parameters(), array('idnumber'=>$idnumber));
+ 
+		$webservice = new  droodle_webservice ();
+		$id = $webservice->course_id ($idnumber);
+
+        return $id;
+    }
+
 
     
 	/* list_courses */

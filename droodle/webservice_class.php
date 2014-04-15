@@ -2621,7 +2621,7 @@ function enrol_user_change_role ($username, $course_id, $roleid = 5)
 	$conditions = array ('username' => $username);
 	$user = $DB->get_record('user',$conditions);
 	if (!$user)
-		$this->create_droodle_user ($username);
+		return 0;
 
 	$user = $DB->get_record('user',$conditions);
 	$conditions = array ('id' => $course_id);
@@ -2797,10 +2797,6 @@ function multiple_enrol ($username, $courses, $roleid = 5)
         $conditions = array ('username' => $username);
         $user = $DB->get_record('user',$conditions);
 
-		 if (!$user)
-            $this->create_droodle_user ($username);
-        $user = $DB->get_record('user',$conditions);
-
 		if (!$user)
 			return;
 
@@ -2916,7 +2912,7 @@ function enrol_user_old ($username, $course_id, $roleid = 5)
 	$conditions = array ('username' => $username);
 	$user = $DB->get_record('user',$conditions);
 	if (!$user)
-		$this->create_droodle_user ($username);
+		return 0;
 
 	$user = $DB->get_record('user',$conditions);
 	$conditions = array ('id' => $course_id);
@@ -3332,6 +3328,21 @@ function user_id ($username)
 		return 0;
 
 	return $user->id;
+}
+
+function course_id ($idnumber)
+{
+	global $DB;
+
+	$idnumber = utf8_decode ($idnumber);
+	$idnumber = strtolower ($idnumber);
+	$conditions = array("idnumber" => $idnumber);
+	$course = $DB->get_record("course", $conditions);
+
+	if (!$course)
+		return 0;
+
+	return $course->id;
 }
 
 function user_details ($username)

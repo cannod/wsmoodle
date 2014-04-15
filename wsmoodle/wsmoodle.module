@@ -19,159 +19,10 @@ function wsmoodle_menu() {
     'title' => 'Moodle API webservice settings',
     'type' => MENU_DEFAULT_LOCAL_TASK,
   );
-  $items['admin/config/services/wsmoodle/tools'] = array( //this creates a URL that will call this form at "examples/form-example"
-    'title' => 'Moodle API webservice Tools', //page title
-	'weight' => 10,
-	'type' => MENU_LOCAL_TASK,
-    'description' => 'Moodle API webservice Tools.',
-    'page callback' => 'drupal_get_form', //this is the function that will be called when the page is accessed.  for a form, use drupal_get_form
-    'page arguments' => array('wsmoodle_tools_form'), //put the name of the form here
-    'access callback' => TRUE,
-	'file' => 'wsmoodle.admin.inc',
-  );
-  $items['admin/config/services/wsmoodle/cohorts'] = array( //this creates a URL that will call this form at "examples/form-example"
-    'title' => 'Moodle API cohort settings', //page title
-	'type' => MENU_LOCAL_TASK,
-	'weight' => 9,
-    'description' => 'Moodle API cohort settings.',
-    'page callback' => 'drupal_get_form', //this is the function that will be called when the page is accessed.  for a form, use drupal_get_form
-    'page arguments' => array('wsmoodle_cohorts_form'), //put the name of the form here
-    'access callback' => TRUE,
-	'file' => 'wsmoodle.admin.inc',
-  );
   return $items;
 }
 
-function cohort_sync_button() {
-
-  $config = get_wsmoodle_config();
-	
-  $query = new EntityFieldQuery();
-  $query->entityCondition('entity_type', 'user')
-  ->propertyCondition('uid', 0, '!=');
-  $result = $query->execute();
-  //debug($result);
-  $user_ids = array_keys($result['user']);
-  //debug($user_ids);
-  
-  $users = user_load_multiple($user_ids);
-  //debug($users);
-  foreach($users as $account) {
-  
-    // First get cohorts from Moodle
-    $moodle_cohorts = droodle_get_cohorts();
-	
-    debug($moodle_cohorts);
-	  
-    $uid = $account->uid;
-	$name = 'menr';
-    $memberships = views_get_view_result('menr',NULL,$uid);
-
-    //debug($uid);
-    //debug($memberships);
-	
-	if (!empty($memberships)) {
-
-	  debug($memberships);
-	}
-  } 
-  
-/**  
-  $name = 'menr';
-  $memberships = views_get_view_result('menr');
-
-  debug($config);
-  debug($memberships);
-  
-  $cohort_user_id_mapping = $config['cohort_user_id'];
-  $cohort_id_mapping = $config['cohort_id'];
-  $cohort_name_mapping = $config['cohort_name'];
-  $cohort_description_mapping = $config['cohort_description'];
-  
-  //debug($cohort_username_mapping);
-  
-  foreach($memberships as $membership) {
-    //debug($membership);
-	$user_id = $membership->$cohort_user_id_mapping;
-	$cohort_id = $membership->$cohort_id_mapping;
-	$cohort_name = $membership->$cohort_name_mapping;
-	$cohort_description = $membership->$cohort_description_mapping;
-	
-	//debug("$user_id, $cohort_id, $cohort_name, $cohort_description");
-	
-	//load the user
-	$user = user_load($user_id);
-	$username = $user->name;
-	debug("$username, $user_id, $cohort_id, $cohort_name, $cohort_description");
-	//see if cohort exists
-	
-  }
-  **/
-}
-
-function wsmoodle_sync_cohorts($account) {
-
-  // First get cohorts from Moodle
-  $moodle_cohorts = droodle_get_cohorts();
-  debug($moodle_cohorts);
-	  
-  $uid = $account->uid;
-  $name = 'menr';
-  $memberships = views_get_view_result('menr',NULL,$uid);
-
-  //debug($uid);
-  debug($memberships);
-	
-  if (!empty($memberships)) {
-
-	//debug($memberships);
-  }
-
-}
-function user_sync_button() {
-
-  $config = get_wsmoodle_config();
-	
-  $query = new EntityFieldQuery();
-  $query->entityCondition('entity_type', 'user')
-  ->propertyCondition('uid', 0, '!=');
-  $result = $query->execute();
-  //debug($result);
-  $user_ids = array_keys($result['user']);
-  //debug($user_ids);
-  
-  $users = user_load_multiple($user_ids);
-  //debug($users);
-  foreach($users as $account) {
-  
-    wsmoodle_create_update_user($account);
-  }
- 
-  //drupal_set_message(t('User sync complete. Check Recent log messages for errors.'));
-
-}
-
-// Hook form submit
-function wsmoodle_tools_form_submit($form, &$form_state) {
-
-}
-
-//Hook user add
-function wsmoodle_user_insert(&$edit, $account, $category) {
-
-  wsmoodle_create_update_user($account);
-
-}
-
-// Hook user update
-function wsmoodle_user_update(&$edit, $account, $category) {
-
-  wsmoodle_create_update_user($account);
-
-}
-
-// Hook user delete
-function wsmoodle_user_delete($account) {
+function wsmoodle_delete_user($account) {
 
   $username = $account->name;
 
@@ -184,13 +35,28 @@ function wsmoodle_user_delete($account) {
     }
 }
 
-function wsmoodle_enrol_user($account, $course_id) {
+function wsmoodle_enrol_user($account, $idnumber) {
 
-  // droodle_enrol_user
+  // create account in case it's not there.
+  wsmoodle_create_update_user($account);
   
-  drupal_set_message(t('Moodle course @username!',
-    array('@username' => $course_id)));
-
+  $id = droodle_course_id($idnumber);
+  
+  if (empty($id)) {
+    watchdog('wsmoodle', 'ERROR could not find Moodle course with course ID number - %idnumber.', array('%idnumber' => $idnumber), WATCHDOG_ERROR);
+	return;
+  }
+  // Cool we have a course id.
+  // enrol the user
+  $username = $account->name;
+  
+  $response = droodle_enrol_user($username, $id);
+  
+    if ($response == 1) {
+      watchdog('wsmoodle', 'Successfully enrolled user %username into Moodle course %id.', array('%username' => $username, '%id' => $id));
+    } else {
+      watchdog('wsmoodle', 'ERROR enrolling user %username into Moodle course %id.', array('%username' => $username, '%id' => $id), WATCHDOG_ERROR);
+    }
 }
 
 function wsmoodle_create_update_user($account) {
@@ -255,6 +121,41 @@ function droodle_create_user($user) {
   
   return $response;
   
+}
+
+function droodle_course_id($idnumber) {
+
+  $config = get_wsmoodle_config();
+  $functionname = 'droodle_course_id';
+
+  $url = $config['fqdn'] . $config['endpoint'] . '?wstoken=' . $config['token'] . '&wsfunction=' . $functionname . '&moodlewsrestformat=' . $config['restformat'];
+  $params = array();
+  $data = array('idnumber' => $idnumber);
+
+  $response = make_request($url, HttpClientRequest::METHOD_POST, $params, $data);
+  
+  return $response;
+
+
+}
+
+function droodle_enrol_user($username, $id, $roleid = 5) {
+
+  $config = get_wsmoodle_config();
+  $functionname = 'droodle_enrol_user';
+
+  $url = $config['fqdn'] . $config['endpoint'] . '?wstoken=' . $config['token'] . '&wsfunction=' . $functionname . '&moodlewsrestformat=' . $config['restformat'];
+  $params = array();
+  $data = array(
+            'username' => $username,
+			'id' => $id,
+            'roleid' => $roleid,
+			);
+
+  $response = make_request($url, HttpClientRequest::METHOD_POST, $params, $data);
+  
+  return $response;
+
 }
 
 function droodle_get_cohorts() {
